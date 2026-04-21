@@ -1,0 +1,49 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.13'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.simplejwtauth'
+version = '1.0.0'
+
+// Library module — publish a plain jar, skip the Spring Boot fat jar.
+bootJar { enabled = false }
+jar {
+    enabled = true
+    archiveClassifier = ''
+}
+
+// Bundle the frontend SDK into the JAR at META-INF/resources/sja/auth.js.
+// Spring Boot auto-serves META-INF/resources/** at the root URL, so consuming
+// projects can load it via `<script type="module" src="/sja/auth.js">` without
+// any extra configuration.
+tasks.named('processResources') {
+    from(rootProject.file('frontend')) {
+        include 'auth.js'
+        into 'META-INF/resources/sja'
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    implementation 'com.hazelcast:hazelcast:5.5.0'
+
+    compileOnly 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}
