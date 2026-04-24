@@ -10,14 +10,11 @@ import com.simplejwtauth.auth.domain.OAuthProvider;
 import lombok.RequiredArgsConstructor;
 
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.util.Base64;
 
 @RequiredArgsConstructor
 public class OAuthApplicationService implements OAuthLoginUseCase {
 
-    private static final Duration STATE_TTL = Duration.ofMinutes(10);
-    private static final Duration CODE_TTL = Duration.ofSeconds(60);
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final OAuthUserResolver oAuthUserResolver;
@@ -29,7 +26,7 @@ public class OAuthApplicationService implements OAuthLoginUseCase {
     @Override
     public String getAuthorizationUrl(OAuthProvider provider) {
         String state = newRandomToken();
-        stateStore.store(state, STATE_TTL);
+        stateStore.store(state);
         return oAuthClient.getAuthorizationUrl(provider, state);
     }
 
@@ -41,7 +38,7 @@ public class OAuthApplicationService implements OAuthLoginUseCase {
         String providerId = oAuthClient.exchangeCodeForProviderId(provider, code);
         String userId = oAuthUserResolver.resolve(provider, providerId);
         AuthToken tokens = tokenIssuer.issueTokens(userId);
-        String oneTimeCode = codeStore.issue(tokens.accessToken(), CODE_TTL);
+        String oneTimeCode = codeStore.issue(tokens.accessToken());
         return new OAuthCallbackResult(oneTimeCode, tokens.refreshToken());
     }
 

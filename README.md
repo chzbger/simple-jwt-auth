@@ -63,12 +63,12 @@ public class MyPasswordVerifier implements PasswordVerifier {
     private final PasswordEncoder encoder;
     // ...
     @Override
-    public Long verify(String username, String password) {
+    public String verify(String username, String password) {
         User user = users.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
         if (!encoder.matches(password, user.getPasswordHash()))
             throw new IllegalArgumentException("Invalid credentials");
-        return user.getId();
+        return String.valueOf(user.getId());   // Long/UUID/복합키 무엇이든 문자열로
     }
 }
 ```
@@ -81,10 +81,11 @@ public class MyOAuthUserResolver implements OAuthUserResolver {
     private final UserRepository users;
     // ...
     @Override
-    public Long resolve(OAuthProvider provider, String providerId) {
+    public String resolve(OAuthProvider provider, String providerId) {
         return users.findByProviderAndProviderId(provider.name(), providerId)
                 .map(User::getId)
-                .orElseGet(() -> users.save(new User(provider.name(), providerId)).getId());
+                .orElseGet(() -> users.save(new User(provider.name(), providerId)).getId())
+                .toString();
     }
 }
 ```
@@ -104,8 +105,8 @@ public class PostController {
     @Auth
     @PostMapping("/api/posts")
     public Post create(@RequestBody CreatePostRequest req) {
-        Long userId = AuthContext.getUserId();                              // 인증된 유저
-        return postService.create(userId, req);
+        String userId = AuthContext.getUserId();                            // 인증된 유저 (JWT sub 원본)
+        return postService.create(Long.valueOf(userId), req);               // 소비자가 타입 변환
     }
 }
 

@@ -1,6 +1,5 @@
 package com.simplejwtauth.auth.application.service;
 
-import com.simplejwtauth.auth.application.config.JwtSettings;
 import com.simplejwtauth.auth.application.port.out.RefreshTokenStore;
 import com.simplejwtauth.auth.domain.AuthToken;
 import com.simplejwtauth.auth.domain.TokenFamily;
@@ -15,18 +14,12 @@ public class TokenIssuer {
 
     private final JwtProvider jwtProvider;
     private final RefreshTokenStore refreshTokenStore;
-    private final JwtSettings jwtSettings;
 
     /** Issues tokens for a brand-new session (login / OAuth first-time), starts a new family. */
     public AuthToken issueTokens(String userId) {
         String refreshToken = jwtProvider.createRefreshToken();
         String familyId = UUID.randomUUID().toString();
-        refreshTokenStore.issueFamily(
-                RefreshTokenStore.Sha256Hasher.hash(refreshToken),
-                userId,
-                familyId,
-                jwtSettings.refreshTokenExpiry()
-        );
+        refreshTokenStore.issueFamily(refreshToken, userId, familyId);
         return new AuthToken(jwtProvider.createAccessToken(userId), refreshToken);
     }
 
@@ -34,12 +27,9 @@ public class TokenIssuer {
      * Rotates within an existing family. Throws if the CAS fails (reuse/replay detected),
      * which also invalidates every token in the family.
      */
-    public AuthToken rotateTokens(TokenFamily family, String oldHash) {
+    public AuthToken rotateTokens(TokenFamily family, String oldRefreshToken) {
         String newRefresh = jwtProvider.createRefreshToken();
-        String newHash = RefreshTokenStore.Sha256Hasher.hash(newRefresh);
-        boolean ok = refreshTokenStore.rotate(
-                family.familyId(), oldHash, newHash, jwtSettings.refreshTokenExpiry()
-        );
+        boolean ok = refreshTokenStore.rotate(family.familyId(), oldRefreshToken, newRefresh);
         if (!ok) {
             refreshTokenStore.invalidateFamily(family.familyId());
             throw new IllegalStateException("Refresh token reuse detected; family revoked");

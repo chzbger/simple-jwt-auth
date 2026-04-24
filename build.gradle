@@ -30,6 +30,10 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+// Spring Boot 3.5.x BOM pins hazelcast to 5.5.0. Override so hazelcast-spring:5.6.0
+// and its transitive hazelcast-core both resolve to 5.6.0.
+ext['hazelcast.version'] = '5.6.0'
+
 repositories {
     mavenCentral()
 }
@@ -38,11 +42,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+    implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
 
-    implementation 'com.hazelcast:hazelcast:5.5.0'
+    implementation 'com.hazelcast:hazelcast-spring:5.6.0'
 
     compileOnly 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'

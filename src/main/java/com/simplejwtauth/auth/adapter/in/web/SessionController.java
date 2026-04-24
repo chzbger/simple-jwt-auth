@@ -25,8 +25,11 @@ public class SessionController {
 
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(
-            @CookieValue("${simple-jwt-auth.web.cookie-name:sja_rt}") String refreshToken,
+            @CookieValue(name = "${simple-jwt-auth.web.cookie-name:sja_rt}", required = false) String refreshToken,
             HttpServletResponse response) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ResponseEntity.status(401).build();
+        }
         AuthToken token = refreshUseCase.refresh(refreshToken);
         cookieHelper.setRefreshCookie(response, token.refreshToken());
         return ResponseEntity.ok(new TokenResponse(token.accessToken()));

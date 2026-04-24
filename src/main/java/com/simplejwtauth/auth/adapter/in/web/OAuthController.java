@@ -72,15 +72,24 @@ public class OAuthController {
     public ResponseEntity<TokenResponse> exchange(@RequestBody OAuthExchangeRequest request) {
         try {
             String accessToken = oAuthLoginUseCase.consumeOneTimeCode(request.code());
-            return ResponseEntity.ok(new TokenResponse(accessToken));
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                    .body(new TokenResponse(accessToken));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(401)
+                    .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                    .build();
         }
     }
 
     private static String buildRedirectUrl(String base, String oneTimeCode) {
-        String sep = base.contains("?") ? "&" : "?";
-        return base + sep + "sja_code=" + urlEncode(oneTimeCode);
+        // Split off the fragment (if any) so `sja_code` lands in the query string,
+        // not inside `#...` — otherwise hash-routing SPAs can't see it.
+        int hashIdx = base.indexOf('#');
+        String path = hashIdx < 0 ? base : base.substring(0, hashIdx);
+        String fragment = hashIdx < 0 ? "" : base.substring(hashIdx);
+        String sep = path.contains("?") ? "&" : "?";
+        return path + sep + "sja_code=" + urlEncode(oneTimeCode) + fragment;
     }
 
     private static String urlEncode(String value) {

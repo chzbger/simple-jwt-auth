@@ -2,12 +2,15 @@ package com.simplejwtauth.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.config.Config;
+import com.hazelcast.config.IndexConfig;
+import com.hazelcast.config.IndexType;
+import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.spring.cache.HazelcastCacheManager;
 import com.simplejwtauth.auth.adapter.in.web.OAuthController;
 import com.simplejwtauth.auth.adapter.in.web.LoginController;
 import com.simplejwtauth.auth.adapter.out.google.GoogleOAuthClient;
-import com.simplejwtauth.auth.adapter.out.google.HazelcastCachedGoogleJwksProvider;
 import com.simplejwtauth.auth.adapter.out.hazelcast.HazelcastOAuthCodeStore;
 import com.simplejwtauth.auth.adapter.out.hazelcast.HazelcastOAuthStateStore;
 import com.simplejwtauth.auth.adapter.out.hazelcast.HazelcastRefreshTokenStore;
@@ -34,6 +37,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -44,6 +49,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @AutoConfiguration
 @EnableConfigurationProperties(AuthProperties.class)
+@EnableCaching
 @ComponentScan(
         basePackages = "com.simplejwtauth.auth",
         excludeFilters = @ComponentScan.Filter(
@@ -89,12 +95,36 @@ public class AuthAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(HazelcastInstance.class)
-    HazelcastInstance sjaHazelcastInstance() {
+    HazelcastInstance sjaHazelcastInstance(AuthProperties properties) {
+        int refreshTtlSec = (int) properties.jwt().refreshTokenExpiry().toSeconds();
+
         Config config = new Config();
         config.setInstanceName("sja-hazelcast");
         config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(false);
         config.getNetworkConfig().getJoin().getTcpIpConfig().setEnabled(false);
+
+        // Central TTL policy — single source of truth for every IMap this library owns.
+        config.addMapConfig(new MapConfig("simple-jwt-auth:rt-hash")
+                .setTimeToLiveSeconds(refreshTtlSec));
+        config.addMapConfig(new MapConfig("simple-jwt-auth:rt-family-current")
+                .setTimeToLiveSeconds(refreshTtlSec));
+        config.addMapConfig(new MapConfig("simple-jwt-auth:rt-family-hashes")
+                .setTimeToLiveSeconds(refreshTtlSec)
+                .addIndexConfig(new IndexConfig(IndexType.HASH, "__key.familyId")));
+        config.addMapConfig(new MapConfig("simple-jwt-auth:rt-user-families")
+                .setTimeToLiveSeconds(refreshTtlSec)
+                .addIndexConfig(new IndexConfig(IndexType.HASH, "__key.userId")));
+        config.addMapConfig(new MapConfig("simple-jwt-auth:oauth-state").setTimeToLiveSeconds(600));   // 10m CSRF window
+        config.addMapConfig(new MapConfig("simple-jwt-auth:oauth-code").setTimeToLiveSeconds(60));     // 60s handoff
+        config.addMapConfig(new MapConfig("sja:google-jwks").setTimeToLiveSeconds(3600));              // 1h JWKS cache
+
         return Hazelcast.getOrCreateHazelcastInstance(config);
+    }
+
+    @Bean(name = "sjaCacheManager")
+    @ConditionalOnMissingBean(name = "sjaCacheManager")
+    CacheManager sjaCacheManager(HazelcastInstance hazelcastInstance) {
+        return new HazelcastCacheManager(hazelcastInstance);
     }
 
     @Bean
@@ -153,10 +183,9 @@ public class AuthAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
-        JwksProvider sjaGoogleJwksProvider(HazelcastInstance hazelcastInstance,
-                                              @Qualifier("sjaOAuthRestClient") RestClient restClient,
+        JwksProvider sjaGoogleJwksProvider(@Qualifier("sjaOAuthRestClient") RestClient restClient,
                                               ObjectMapper objectMapper) {
-            return new HazelcastCachedGoogleJwksProvider(hazelcastInstance, restClient, objectMapper);
+            return new com.simplejwtauth.auth.adapter.out.google.GoogleJwksProvider(restClient, objectMapper);
         }
 
         @Bean

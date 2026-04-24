@@ -17,17 +17,15 @@ public class SessionApplicationService implements RefreshUseCase, LogoutUseCase 
 
     @Override
     public AuthToken refresh(String refreshToken) {
-        String hash = RefreshTokenStore.Sha256Hasher.hash(refreshToken);
-        TokenFamily family = refreshTokenStore.lookup(hash)
+        TokenFamily family = refreshTokenStore.lookup(refreshToken)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
-        return tokenIssuer.rotateTokens(family, hash);
+        return tokenIssuer.rotateTokens(family, refreshToken);
     }
 
     @Override
     public void logout(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) return;
-        String hash = RefreshTokenStore.Sha256Hasher.hash(refreshToken);
-        refreshTokenStore.lookup(hash)
+        refreshTokenStore.lookup(refreshToken)
                 .ifPresent(family -> refreshTokenStore.invalidateFamily(family.familyId()));
     }
 }
