@@ -18,7 +18,7 @@ public class TokenIssuer {
     private final JwtSettings jwtSettings;
 
     /** Issues tokens for a brand-new session (login / OAuth first-time), starts a new family. */
-    public AuthToken issueTokens(Long userId) {
+    public AuthToken issueTokens(String userId) {
         String refreshToken = jwtProvider.createRefreshToken();
         String familyId = UUID.randomUUID().toString();
         refreshTokenStore.issueFamily(

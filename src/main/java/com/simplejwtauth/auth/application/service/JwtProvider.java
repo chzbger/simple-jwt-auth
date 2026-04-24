@@ -28,10 +28,10 @@ public class JwtProvider implements AccessTokenValidator {
         this.key = Keys.hmacShaKeyFor(jwtSettings.secret().getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createAccessToken(Long userId) {
+    public String createAccessToken(String userId) {
         Instant now = Instant.now();
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(userId)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(jwtSettings.accessTokenExpiry())))
                 .signWith(key)
@@ -43,7 +43,7 @@ public class JwtProvider implements AccessTokenValidator {
     }
 
     @Override
-    public Long validateAndGetUserId(String token) {
+    public String validateAndGetUserId(String token) {
         Claims claims;
         try {
             claims = Jwts.parser()
@@ -62,10 +62,6 @@ public class JwtProvider implements AccessTokenValidator {
         if (sub == null || sub.isBlank()) {
             throw INVALID_EX;
         }
-        try {
-            return Long.valueOf(sub);
-        } catch (NumberFormatException e) {
-            throw INVALID_EX;
-        }
+        return sub;
     }
 }

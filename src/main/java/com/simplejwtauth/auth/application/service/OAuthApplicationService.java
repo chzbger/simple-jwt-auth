@@ -39,7 +39,7 @@ public class OAuthApplicationService implements OAuthLoginUseCase {
             throw new IllegalArgumentException("Invalid or expired OAuth state");
         }
         String providerId = oAuthClient.exchangeCodeForProviderId(provider, code);
-        Long userId = oAuthUserResolver.resolve(provider, providerId);
+        String userId = oAuthUserResolver.resolve(provider, providerId);
         AuthToken tokens = tokenIssuer.issueTokens(userId);
         String oneTimeCode = codeStore.issue(tokens.accessToken(), CODE_TTL);
         return new OAuthCallbackResult(oneTimeCode, tokens.refreshToken());

@@ -21,7 +21,7 @@ public final class AuthContext {
     private AuthContext() {}
 
     /** {@link AuthInterceptor} 내부용. 현재 요청에 인증된 userId 를 바인딩한다. */
-    public static void set(HttpServletRequest request, Long userId) {
+    public static void set(HttpServletRequest request, String userId) {
         request.setAttribute(ATTR_KEY, userId);
     }
 
@@ -29,15 +29,15 @@ public final class AuthContext {
      * @throws IllegalStateException 요청 스레드가 아니거나, 현재 요청이 {@code @Auth} 로 보호돼 있지 않아
      *                               인증된 userId 가 바인딩돼 있지 않을 때.
      */
-    public static Long getUserId() {
+    public static String getUserId() {
         return getOptionalUserId().orElseThrow(() -> new IllegalStateException(
                 "No authenticated user in request context. Ensure the endpoint is annotated with @Auth."));
     }
 
-    public static Optional<Long> getOptionalUserId() {
+    public static Optional<String> getOptionalUserId() {
         var attrs = RequestContextHolder.getRequestAttributes();
         if (!(attrs instanceof ServletRequestAttributes sra)) return Optional.empty();
         Object value = sra.getRequest().getAttribute(ATTR_KEY);
-        return value instanceof Long userId ? Optional.of(userId) : Optional.empty();
+        return value instanceof String userId ? Optional.of(userId) : Optional.empty();
     }
 }

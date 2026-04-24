@@ -13,7 +13,7 @@ public class LoginApplicationService implements LoginUseCase {
 
     @Override
     public AuthToken login(String username, String password) {
-        Long userId = passwordVerifier.verify(username, password);
+        String userId = passwordVerifier.verify(username, password);
         return tokenIssuer.issueTokens(userId);
     }
 }

@@ -47,7 +47,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         try {
             String token = header.substring(7);
-            Long userId = accessTokenValidator.validateAndGetUserId(token);
+            String userId = accessTokenValidator.validateAndGetUserId(token);
             AuthContext.set(request, userId);
             return true;
         } catch (InvalidTokenException e) {
