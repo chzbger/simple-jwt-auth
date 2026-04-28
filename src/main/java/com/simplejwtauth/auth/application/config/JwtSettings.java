@@ -6,5 +6,6 @@ public record JwtSettings(
         String secret,
         Duration accessTokenExpiry,
         Duration refreshTokenExpiry,
+        Duration sessionMaxLifetime,
         Duration clockSkew
 ) {}

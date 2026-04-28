@@ -14,10 +14,7 @@ jar {
     archiveClassifier = ''
 }
 
-// Bundle the frontend SDK into the JAR at META-INF/resources/sja/auth.js.
-// Spring Boot auto-serves META-INF/resources/** at the root URL, so consuming
-// projects can load it via `<script type="module" src="/sja/auth.js">` without
-// any extra configuration.
+// 프론트소스
 tasks.named('processResources') {
     from(rootProject.file('frontend')) {
         include 'auth.js'
@@ -30,8 +27,6 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-// Spring Boot 3.5.x BOM pins hazelcast to 5.5.0. Override so hazelcast-spring:5.6.0
-// and its transitive hazelcast-core both resolve to 5.6.0.
 ext['hazelcast.version'] = '5.6.0'
 
 repositories {
@@ -42,9 +37,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     implementation 'com.hazelcast:hazelcast-spring:5.6.0'
 

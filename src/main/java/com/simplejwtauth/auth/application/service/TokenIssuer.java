@@ -1,39 +1,58 @@
 package com.simplejwtauth.auth.application.service;
 
+import com.simplejwtauth.auth.application.config.JwtSettings;
 import com.simplejwtauth.auth.application.port.out.RefreshTokenStore;
 import com.simplejwtauth.auth.domain.AuthToken;
-import com.simplejwtauth.auth.domain.TokenFamily;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 public class TokenIssuer {
 
-    private final JwtProvider jwtProvider;
+    private final JwtEncoder jwtEncoder;
+    private final JwtSettings jwtSettings;
     private final RefreshTokenStore refreshTokenStore;
 
-    /** Issues tokens for a brand-new session (login / OAuth first-time), starts a new family. */
+    /**
+     * 새 세션 (로컬 로그인 / OAuth 성공) 시 호출.
+     * 단일 디바이스 (id:token 1:1)
+     */
     public AuthToken issueTokens(String userId) {
-        String refreshToken = jwtProvider.createRefreshToken();
-        String familyId = UUID.randomUUID().toString();
-        refreshTokenStore.issueFamily(refreshToken, userId, familyId);
-        return new AuthToken(jwtProvider.createAccessToken(userId), refreshToken);
+        String newRefreshToken = newRefreshToken();
+        refreshTokenStore.issueToken(newRefreshToken, userId);
+        return new AuthToken(createAccessToken(userId), newRefreshToken);
     }
 
     /**
-     * Rotates within an existing family. Throws if the CAS fails (reuse/replay detected),
-     * which also invalidates every token in the family.
+     * Refresh token 회전. 옛 토큰이 무효/만료된 경우 throw 401
      */
-    public AuthToken rotateTokens(TokenFamily family, String oldRefreshToken) {
-        String newRefresh = jwtProvider.createRefreshToken();
-        boolean ok = refreshTokenStore.rotate(family.familyId(), oldRefreshToken, newRefresh);
-        if (!ok) {
-            refreshTokenStore.invalidateFamily(family.familyId());
-            throw new IllegalStateException("Refresh token reuse detected; family revoked");
+    public AuthToken rotateTokens(String oldRefreshToken) {
+        String newRefreshToken = newRefreshToken();
+        String userId = refreshTokenStore.rotate(oldRefreshToken, newRefreshToken);
+        if (userId == null) {
+            throw new IllegalArgumentException("유효하지 않은 refresh token");
         }
-        return new AuthToken(jwtProvider.createAccessToken(family.userId()), newRefresh);
+        return new AuthToken(createAccessToken(userId), newRefreshToken);
+    }
+
+    private String createAccessToken(String userId) {
+        Instant now = Instant.now();
+        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .subject(userId)
+                .issuedAt(now)
+                .expiresAt(now.plus(jwtSettings.accessTokenExpiry()))
+                .build();
+        return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+    }
+
+    private static String newRefreshToken() {
+        return UUID.randomUUID().toString();
     }
 }
