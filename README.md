@@ -43,6 +43,9 @@ import { SimpleJwtAuth } from '/sja/auth.js';
 // 인스턴스 생성. 페이지 로드 시 /me 자동 호출 → cookie 살아있으면 로그인 복원
 const auth = new SimpleJwtAuth();
 
+// 초기 세션 복원 끝까지 대기 (SPA 첫 렌더 직전 1회 권장)
+await auth.ready();
+
 // 로컬 로그인 (실패 시 AuthError throw)
 await auth.login('alice', 'password');
 
@@ -56,11 +59,17 @@ await auth.fetch('/api/posts', {
   body: JSON.stringify({ title: 'Hello' }),
 });
 
+// fetch 외 transport 용 (WebSocket/SSE 등). 만료/없으면 자동 refresh.
+const token = await auth.getAccessToken();
+
 // 로그아웃 (서버 refresh 무효화 + 로컬 access token 제거)
 await auth.logout();
 
 auth.isLoggedIn;   // boolean
 auth.userId;       // 로그인 시 userId, 아니면 null
+
+// 인증 상태 변경 구독. 초기 restore 직후 1회 + 이후 변경 시마다 호출.
+const unsubscribe = auth.addAuthListener(loggedIn => console.log('logged in?', loggedIn));
 ```
 
 ## 사용법
@@ -79,7 +88,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.chzbger:simple-jwt-auth:1.0.0'
+    implementation 'com.github.chzbger:simple-jwt-auth:1.0.1'
 }
 ```
 
@@ -95,7 +104,7 @@ Maven:
 <dependency>
     <groupId>com.github.chzbger</groupId>
     <artifactId>simple-jwt-auth</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
